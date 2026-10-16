@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Электронная библиотека — Вариант 7</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body>
+
+    <!-- ============ Шапка ============ -->
+    <header class="hero">
+        <div class="hero-inner">
+            <div class="hero-badge">Вариант&nbsp;7 · Docker&nbsp;Compose</div>
+            <h1 class="hero-title"><span class="hero-emoji">📚</span> Электронная библиотека</h1>
+            <p class="hero-sub">
+                Поиск книг по автору и ISBN через <strong>Open Library</strong>
+                и каталог прочитанных книг в <strong>PostgreSQL</strong>
+            </p>
+            <div class="pipeline" aria-label="Схема взаимодействия сервисов">
+                <span class="node">frontend</span>
+                <span class="arrow">→</span>
+                <span class="node">backend</span>
+                <span class="arrow">→</span>
+                <span class="node">db</span>
+                <span class="arrow plus">+</span>
+                <span class="node node-alt">web-service</span>
+                <span class="arrow">→</span>
+                <span class="node node-ext">Open&nbsp;Library</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- ============ Статистика ============ -->
+        <section id="stats" class="stats hidden" aria-label="Статистика библиотеки">
+            <div class="stat-card">
+                <div class="stat-icon">📖</div>
+                <div class="stat-body">
+                    <span id="stat-books" class="stat-value">0</span>
+                    <span class="stat-label">книг прочитано</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📄</div>
+                <div class="stat-body">
+                    <span id="stat-pages" class="stat-value">0</span>
+                    <span class="stat-label">страниц прочитано</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-body">
+                    <span id="stat-rating" class="stat-value">—</span>
+                    <span class="stat-label">средняя оценка</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔍</div>
+                <div class="stat-body">
+                    <span id="stat-searches" class="stat-value">0</span>
+                    <span class="stat-label">поисковых запросов</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ Кнопка 2: поиск через Web-сервис ============ -->
+        <section class="panel panel-search">
+            <div class="panel-head">
+                <div class="panel-icon">🔍</div>
+                <div>
+                    <h2>Найти книгу</h2>
+                    <p class="panel-hint">Кнопка&nbsp;2 · запрос к Web-сервису (Open&nbsp;Library) через Backend</p>
+                </div>
+                <code class="endpoint">GET /api/search</code>
+            </div>
+
+            <div class="search-bar">
+                <div class="field field-grow">
+                    <input id="search-query" type="text" placeholder="Автор, название или ISBN…" autocomplete="off">
+                </div>
+                <div class="field">
+                    <select id="search-type" aria-label="Тип поиска">
+                        <option value="author">По автору / названию</option>
+                        <option value="isbn">По ISBN</option>
+                    </select>
+                </div>
+                <button id="btn-search" class="btn btn-accent">
+                    <span class="btn-icon">🎯</span> Найти
+                </button>
+            </div>
+
+            <div class="hints">
+                <span class="hints-label">Попробуйте:</span>
+                <button class="chip" data-query="Tolkien" data-type="author">Tolkien</button>
+                <button class="chip" data-query="Orwell" data-type="author">Orwell</button>
+                <button class="chip" data-query="Булгаков" data-type="author">Булгаков</button>
+                <button class="chip" data-query="9780451524935" data-type="isbn">ISBN 9780451524935</button>
+            </div>
+
+            <div id="search-status" class="status" role="status"></div>
+            <div id="search-results" class="books-grid"></div>
+        </section>
+
+        <!-- ============ Кнопка 1: каталог из БД ============ -->
+        <section class="panel panel-catalog">
+            <div class="panel-head">
+                <div class="panel-icon">📖</div>
+                <div>
+                    <h2>Мой каталог прочитанных</h2>
+                    <p class="panel-hint">Кнопка&nbsp;1 · данные из внутренней БД через Backend</p>
+                </div>
+                <code class="endpoint">GET /api/books</code>
+            </div>
+
+            <div class="search-bar">
+                <button id="btn-load-books" class="btn btn-primary">
+                    <span class="btn-icon">↻</span> Обновить каталог
+                </button>
+                <div class="field field-grow">
+                    <input id="catalog-filter" type="text" placeholder="Фильтр по названию или автору…" autocomplete="off">
+                </div>
+            </div>
+
+            <div id="books-container" class="books-grid"></div>
+        </section>
+    </main>
+
+    <!-- ============ Подвал ============ -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <p class="footer-title">Лабораторная работа · Контейнеризация многокомпонентных приложений с помощью Docker&nbsp;Compose</p>
+            <p class="footer-stack">
+                <code>frontend</code> · nginx
+                <span class="dot">•</span> <code>backend</code> · FastAPI
+                <span class="dot">•</span> <code>db</code> · PostgreSQL
+                <span class="dot">•</span> <code>web-service</code> · Open Library API
+            </p>
+        </div>
+    </footer>
+
+    <!-- Контейнер всплывающих уведомлений -->
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <!-- Шаблон карточки книги -->
+    <template id="book-card-template">
+        <article class="book-card">
+            <div class="cover">
+                <img alt="" loading="lazy">
+                <div class="no-cover" aria-hidden="true">📖</div>
+            </div>
+            <div class="info">
+                <h3 class="title"></h3>
+                <p class="author"></p>
+                <div class="stars" aria-hidden="true"></div>
+                <p class="meta"></p>
+                <div class="actions"></div>
+            </div>
+        </article>
+    </template>
+
+    <!-- Шаблон скелетона загрузки -->
+    <template id="skeleton-template">
+        <div class="book-card skeleton-card">
+            <div class="cover"><div class="sk sk-cover"></div></div>
+            <div class="info">
+                <div class="sk sk-line w80"></div>
+                <div class="sk sk-line w60"></div>
+                <div class="sk sk-line w40"></div>
+                <div class="sk sk-btn"></div>
+            </div>
+        </div>
+    </template>
+
+    <script src="app.js"></script>
+</body>
+</html>

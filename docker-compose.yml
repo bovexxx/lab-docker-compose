@@ -1,0 +1,81 @@
+# =============================================================
+# Лабораторная работа: Контейнеризация многокомпонентных
+# приложений с помощью Docker Compose
+# Вариант 7 — Электронная библиотека
+# (поиск книг по автору/ISBN через Open Library API,
+#  каталог прочитанных книг в PostgreSQL)
+# =============================================================
+
+services:
+  # ---------- 1. База данных (каталог прочитанных книг) ----------
+  db:
+    image: postgres:16-alpine
+    container_name: library-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-library}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-library_password}
+      POSTGRES_DB: ${POSTGRES_DB:-library_db}
+    volumes:
+      # сохранение данных между перезапусками контейнеров
+      - pgdata:/var/lib/postgresql/data
+      # первичная инициализация БД при первом старте
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---------- 2. Web-сервис (эмулятор: обёртка над Open Library) ----------
+  web-service:
+    build: ./web-service
+    container_name: library-web-service
+    environment:
+      OPENLIBRARY_BASE: ${OPENLIBRARY_BASE:-https://openlibrary.org}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---------- 3. Backend (REST API + интеграция с СУБД и Web-сервисом) ----------
+  backend:
+    build: ./backend
+    container_name: library-backend
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-library_db}
+      DB_USER: ${POSTGRES_USER:-library}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-library_password}
+      WEBSERVICE_URL: http://web-service:8001
+    depends_on:
+      db:
+        condition: service_healthy   # ждём готовности СУБД (healthcheck)
+      web-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---------- 4. Frontend (веб-интерфейс, доступен с хоста на :8080) ----------
+  frontend:
+    build: ./frontend
+    container_name: library-frontend
+    ports:
+      # порт 8080 может быть занят другим проектом — используем 8081
+      - "8081:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
